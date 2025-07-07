@@ -1,0 +1,255 @@
+const mongoose = require('mongoose');
+
+const userSchema = new mongoose.Schema({
+  // Basic Information
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
+  password: {
+    type: String,
+    required: true
+  },
+  phone: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  role: {
+    type: String,
+    enum: ['buyer', 'farmer', 'admin'],
+    default: 'buyer'
+  },
+  
+  // Profile Information
+  avatar: {
+    type: String,
+    default: ''
+  },
+  bio: {
+    type: String,
+    default: ''
+  },
+  location: {
+    type: String,
+    default: ''
+  },
+  joinDate: {
+    type: Date,
+    default: Date.now
+  },
+  
+  // Farmer Specific Information
+  farmName: {
+    type: String,
+    default: ''
+  },
+  farmSize: {
+    type: String,
+    default: ''
+  },
+  farmLocation: {
+    type: String,
+    default: ''
+  },
+  certifications: [{
+    type: String,
+    default: []
+  }],
+  
+  // Buyer Specific Information
+  preferences: [{
+    type: String,
+    default: []
+  }],
+  favoriteCategories: [{
+    type: String,
+    default: []
+  }],
+  
+  // Notification Preferences
+  notifications: {
+    email: {
+      type: Boolean,
+      default: true
+    },
+    sms: {
+      type: Boolean,
+      default: false
+    },
+    push: {
+      type: Boolean,
+      default: true
+    },
+    marketing: {
+      type: Boolean,
+      default: false
+    }
+  },
+  
+  // Privacy Settings
+  privacy: {
+    showProfile: {
+      type: Boolean,
+      default: true
+    },
+    showLocation: {
+      type: Boolean,
+      default: true
+    },
+    showContact: {
+      type: Boolean,
+      default: false
+    }
+  },
+  
+  // Language & Region
+  language: {
+    type: String,
+    default: 'en'
+  },
+  currency: {
+    type: String,
+    default: 'inr'
+  },
+  
+  // Stats (for analytics)
+  stats: {
+    ordersPlaced: {
+      type: Number,
+      default: 0
+    },
+    totalSpent: {
+      type: Number,
+      default: 0
+    },
+    favoriteFarmers: {
+      type: Number,
+      default: 0
+    },
+    reviewsGiven: {
+      type: Number,
+      default: 0
+    },
+    // For farmers
+    productsListed: {
+      type: Number,
+      default: 0
+    },
+    totalOrders: {
+      type: Number,
+      default: 0
+    },
+    averageRating: {
+      type: Number,
+      default: 0
+    },
+    monthlyRevenue: {
+      type: Number,
+      default: 0
+    }
+  },
+  
+  // Security
+  lastLogin: {
+    type: Date,
+    default: Date.now
+  },
+  loginAttempts: {
+    type: Number,
+    default: 0
+  },
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  
+  // Two-Factor Authentication
+  twoFactorSecret: {
+    type: String,
+    default: null
+  },
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
+  },
+  backupCodes: [{
+    code: String,
+    used: {
+      type: Boolean,
+      default: false
+    }
+  }],
+  lastPasswordChange: {
+    type: Date,
+    default: Date.now
+  }
+  
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual for profile completion percentage
+userSchema.virtual('profileCompletion').get(function() {
+  const requiredFields = ['name', 'email', 'phone', 'location'];
+  const optionalFields = ['bio', 'avatar'];
+  
+  let completed = 0;
+  let total = requiredFields.length + optionalFields.length;
+  
+  // Check required fields
+  requiredFields.forEach(field => {
+    if (this[field] && this[field].toString().trim() !== '') {
+      completed++;
+    }
+  });
+  
+  // Check optional fields
+  optionalFields.forEach(field => {
+    if (this[field] && this[field].toString().trim() !== '') {
+      completed++;
+    }
+  });
+  
+  // Add role-specific fields
+  if (this.role === 'farmer') {
+    const farmerFields = ['farmName', 'farmSize', 'farmLocation'];
+    total += farmerFields.length;
+    farmerFields.forEach(field => {
+      if (this[field] && this[field].toString().trim() !== '') {
+        completed++;
+      }
+    });
+  } else if (this.role === 'buyer') {
+    const buyerFields = ['preferences', 'favoriteCategories'];
+    total += buyerFields.length;
+    buyerFields.forEach(field => {
+      if (this[field] && this[field].length > 0) {
+        completed++;
+      }
+    });
+  }
+  
+  return Math.round((completed / total) * 100);
+});
+
+// Virtual for status text
+userSchema.virtual('statusText').get(function() {
+  if (this.role === 'farmer') {
+    return this.isVerified ? 'Verified Farmer' : 'Farmer';
+  } else {
+    return 'Premium Buyer';
+  }
+});
+
+module.exports = mongoose.model('User', userSchema); 
