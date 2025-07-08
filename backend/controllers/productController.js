@@ -12,6 +12,7 @@ const createProduct = async (req, res) => {
       category,
       subcategory,
       price,
+      basePrice,
       unit,
       minOrderQuantity,
       maxOrderQuantity,
@@ -33,6 +34,18 @@ const createProduct = async (req, res) => {
       searchKeywords
     } = req.body;
 
+    // Require basePrice or fallback to price
+    let finalBasePrice = basePrice;
+    if (finalBasePrice === undefined && price !== undefined) {
+      finalBasePrice = price;
+    }
+    if (finalBasePrice === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'basePrice is required.'
+      });
+    }
+
     // Get farmer information from authenticated user
     const farmer = await User.findById(req.user.id);
     if (!farmer || farmer.role !== 'farmer') {
@@ -48,7 +61,8 @@ const createProduct = async (req, res) => {
       description,
       category,
       subcategory,
-      price,
+      basePrice: finalBasePrice,
+      price, // keep for backward compatibility if needed
       unit,
       minOrderQuantity: minOrderQuantity || 1,
       maxOrderQuantity,
@@ -68,7 +82,9 @@ const createProduct = async (req, res) => {
       isFeatured: isFeatured || false,
       isSeasonal: isSeasonal || false,
       tags: tags || [],
-      searchKeywords: searchKeywords || []
+      searchKeywords: searchKeywords || [],
+      status: 'pending_approval',
+      approvalStatus: { status: 'pending' }
     });
 
     await product.save();
@@ -218,10 +234,16 @@ const getProduct = async (req, res) => {
     const mappedProduct = {
       ...product,
       id: product._id,
+      price: product.price !== undefined ? product.price : product.basePrice,
+      basePrice: product.basePrice,
+      quantity: product.quantity ?? 0,
+      harvestDate: product.harvestDate,
+      images: product.images || [],
       farmer: product.farmer ? {
         ...product.farmer,
         id: product.farmer._id
-      } : product.farmer
+      } : product.farmer,
+      qualityMetrics: product.qualityMetrics || null
     };
 
     // Increment view count (need to do this separately since we're using lean())

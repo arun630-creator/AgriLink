@@ -35,7 +35,33 @@ const orderItemSchema = new mongoose.Schema({
   farmerName: {
     type: String,
     required: true
-  }
+  },
+  // Agricultural specific fields
+  harvestDate: Date,
+  expectedHarvestDate: Date,
+  qualityGrade: {
+    type: String,
+    enum: ['Premium', 'Grade A', 'Grade B', 'Standard']
+  },
+  qualityChecks: [{
+    checkType: {
+      type: String,
+      enum: ['visual', 'weight', 'freshness', 'pesticide', 'other']
+    },
+    result: {
+      type: String,
+      enum: ['pass', 'fail', 'pending']
+    },
+    notes: String,
+    checkedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    checkedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 });
 
 const deliveryAddressSchema = new mongoose.Schema({
@@ -65,6 +91,106 @@ const deliveryAddressSchema = new mongoose.Schema({
   },
   landmark: {
     type: String
+  },
+  coordinates: {
+    latitude: Number,
+    longitude: Number
+  }
+});
+
+// Agricultural order lifecycle tracking
+const orderLifecycleSchema = new mongoose.Schema({
+  stage: {
+    type: String,
+    enum: ['harvesting', 'packed', 'quality_check', 'shipped', 'in_transit', 'out_for_delivery', 'delivered'],
+    required: true
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now
+  },
+  location: String,
+  notes: String,
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  estimatedCompletion: Date
+});
+
+// Quality check schema
+const qualityCheckSchema = new mongoose.Schema({
+  checkType: {
+    type: String,
+    enum: ['visual', 'weight', 'freshness', 'pesticide', 'packaging', 'other'],
+    required: true
+  },
+  result: {
+    type: String,
+    enum: ['pass', 'fail', 'pending'],
+    required: true
+  },
+  score: {
+    type: Number,
+    min: 0,
+    max: 10
+  },
+  notes: String,
+  images: [String],
+  checkedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  checkedAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+// Dispute schema
+const disputeSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['quality', 'delivery', 'quantity', 'pricing', 'other'],
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['open', 'investigating', 'resolved', 'closed'],
+    default: 'open'
+  },
+  description: {
+    type: String,
+    required: true
+  },
+  evidence: [{
+    type: {
+      type: String,
+      enum: ['image', 'video', 'document']
+    },
+    url: String,
+    description: String
+  }],
+  resolution: {
+    action: {
+      type: String,
+      enum: ['refund', 'replacement', 'partial_refund', 'no_action']
+    },
+    amount: Number,
+    notes: String,
+    resolvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    resolvedAt: Date
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
 });
 
@@ -81,14 +207,16 @@ const orderSchema = new mongoose.Schema({
   },
   items: [orderItemSchema],
   deliveryAddress: deliveryAddressSchema,
+  
+  // Enhanced payment information
   paymentMethod: {
     type: String,
-    enum: ['cod', 'online', 'upi', 'card', 'wallet'],
+    enum: ['cod', 'online', 'upi', 'card', 'wallet', 'bank_transfer'],
     default: 'cod'
   },
   paymentStatus: {
     type: String,
-    enum: ['pending', 'paid', 'failed', 'refunded'],
+    enum: ['pending', 'paid', 'failed', 'refunded', 'partially_refunded'],
     default: 'pending'
   },
   // Razorpay payment details
@@ -107,13 +235,28 @@ const orderSchema = new mongoose.Schema({
     },
     completedAt: Date,
     cancelledAt: Date,
-    failureReason: String
+    failureReason: String,
+    refundAmount: Number,
+    refundReason: String
   },
+  
+  // Enhanced order status with agricultural lifecycle
   orderStatus: {
     type: String,
-    enum: ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned'],
+    enum: ['pending', 'confirmed', 'harvesting', 'packed', 'quality_check', 'shipped', 'in_transit', 'out_for_delivery', 'delivered', 'cancelled', 'returned', 'disputed'],
     default: 'pending'
   },
+  
+  // Agricultural lifecycle tracking
+  lifecycle: [orderLifecycleSchema],
+  
+  // Quality checks
+  qualityChecks: [qualityCheckSchema],
+  
+  // Disputes
+  disputes: [disputeSchema],
+  
+  // Enhanced pricing
   subtotal: {
     type: Number,
     required: true
@@ -126,6 +269,14 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  commission: {
+    type: Number,
+    default: 0
+  },
+  subsidy: {
+    type: Number,
+    default: 0
+  },
   total: {
     type: Number,
     required: true
@@ -134,6 +285,8 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: 'INR'
   },
+  
+  // Enhanced delivery information
   notes: {
     type: String
   },
@@ -149,13 +302,22 @@ const orderSchema = new mongoose.Schema({
   cancellationReason: {
     type: String
   },
+  
+  // Enhanced tracking
   trackingNumber: {
     type: String
   },
   trackingUrl: {
     type: String
   },
-  // Farmer-specific fields for order management
+  deliveryPartner: {
+    partnerId: String,
+    partnerName: String,
+    contactNumber: String,
+    estimatedDelivery: Date
+  },
+  
+  // Enhanced farmer order management
   farmerOrders: [{
     farmer: {
       type: mongoose.Schema.Types.ObjectId,
@@ -164,7 +326,7 @@ const orderSchema = new mongoose.Schema({
     items: [orderItemSchema],
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
+      enum: ['pending', 'confirmed', 'harvesting', 'packed', 'shipped', 'delivered', 'cancelled'],
       default: 'pending'
     },
     expectedDelivery: {
@@ -172,8 +334,63 @@ const orderSchema = new mongoose.Schema({
     },
     deliveredAt: {
       type: Date
+    },
+    qualityScore: {
+      type: Number,
+      min: 0,
+      max: 10
     }
-  }]
+  }],
+  
+  // Commission and payout tracking
+  commissionDetails: {
+    platformCommission: {
+      type: Number,
+      default: 0
+    },
+    farmerPayout: {
+      type: Number,
+      default: 0
+    },
+    payoutStatus: {
+      type: String,
+      enum: ['pending', 'processed', 'completed', 'failed'],
+      default: 'pending'
+    },
+    payoutDate: Date,
+    transactionId: String
+  },
+  
+  // Customer feedback
+  customerFeedback: {
+    rating: {
+      type: Number,
+      min: 1,
+      max: 5
+    },
+    review: String,
+    qualityRating: {
+      type: Number,
+      min: 1,
+      max: 5
+    },
+    deliveryRating: {
+      type: Number,
+      min: 1,
+      max: 5
+    },
+    submittedAt: Date
+  },
+  
+  // Regional information
+  region: {
+    type: String,
+    required: true
+  },
+  season: {
+    type: String,
+    enum: ['spring', 'summer', 'monsoon', 'autumn', 'winter']
+  }
 }, {
   timestamps: true
 });

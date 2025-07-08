@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const mongoosePaginate = require('mongoose-paginate-v2');
 
 const productSchema = new mongoose.Schema({
   // Basic Product Information
@@ -23,17 +24,37 @@ const productSchema = new mongoose.Schema({
     trim: true,
     maxlength: 50
   },
+  variety: {
+    type: String,
+    trim: true,
+    maxlength: 100
+  },
 
-  // Pricing and Units
-  price: {
+  // Enhanced Pricing and Units
+  basePrice: {
     type: Number,
     required: true,
     min: 0
   },
+  regionalPricing: [{
+    region: {
+      type: String,
+      required: true
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    currency: {
+      type: String,
+      default: 'INR'
+    }
+  }],
   unit: {
     type: String,
     required: true,
-    enum: ['kg', 'gram', 'piece', 'dozen', 'box', 'bunch', 'liter', 'pack']
+    enum: ['kg', 'gram', 'piece', 'dozen', 'box', 'bunch', 'liter', 'pack', 'quintal', 'ton']
   },
   minOrderQuantity: {
     type: Number,
@@ -45,7 +66,7 @@ const productSchema = new mongoose.Schema({
     min: 0
   },
 
-  // Inventory
+  // Enhanced Inventory Management
   quantity: {
     type: Number,
     required: true,
@@ -57,26 +78,34 @@ const productSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  lowStockThreshold: {
+    type: Number,
+    default: 10
+  },
 
-  // Product Quality & Certification
-  organic: {
+  // Agricultural Specific Information
+  cropSeason: {
+    startMonth: {
+      type: Number,
+      min: 1,
+      max: 12
+    },
+    endMonth: {
+      type: Number,
+      min: 1,
+      max: 12
+    }
+  },
+  seasonalAvailability: {
     type: Boolean,
     default: false
   },
-  certifications: [{
-    type: String,
-    enum: ['Organic', 'GAP', 'HACCP', 'ISO', 'FSSAI', 'Other']
-  }],
-  qualityGrade: {
-    type: String,
-    enum: ['Premium', 'Grade A', 'Grade B', 'Standard'],
-    default: 'Standard'
-  },
-
-  // Harvest & Expiry Information
   harvestDate: {
     type: Date,
     required: true
+  },
+  expectedHarvestDate: {
+    type: Date
   },
   expiryDate: {
     type: Date
@@ -85,8 +114,64 @@ const productSchema = new mongoose.Schema({
     type: Number, // in days
     min: 1
   },
+  storageRequirements: {
+    temperature: {
+      min: Number,
+      max: Number,
+      unit: {
+        type: String,
+        enum: ['celsius', 'fahrenheit'],
+        default: 'celsius'
+      }
+    },
+    humidity: {
+      min: Number,
+      max: Number
+    },
+    specialConditions: String
+  },
 
-  // Images
+  // Enhanced Product Quality & Certification
+  organic: {
+    type: Boolean,
+    default: false
+  },
+  certifications: [{
+    type: String,
+    enum: ['Organic', 'GAP', 'HACCP', 'ISO', 'FSSAI', 'Fair Trade', 'Rainforest Alliance', 'Other']
+  }],
+  qualityGrade: {
+    type: String,
+    enum: ['Premium', 'Grade A', 'Grade B', 'Standard'],
+    default: 'Standard'
+  },
+  qualityScore: {
+    type: Number,
+    min: 0,
+    max: 10,
+    default: 5
+  },
+  qualityChecks: [{
+    checkType: {
+      type: String,
+      enum: ['visual', 'weight', 'freshness', 'pesticide', 'other']
+    },
+    result: {
+      type: String,
+      enum: ['pass', 'fail', 'pending']
+    },
+    notes: String,
+    checkedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    checkedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
+  // Images and Media
   images: [{
     url: {
       type: String,
@@ -96,10 +181,20 @@ const productSchema = new mongoose.Schema({
     isPrimary: {
       type: Boolean,
       default: false
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now
     }
   }],
+  videos: [{
+    url: String,
+    title: String,
+    description: String,
+    duration: Number
+  }],
 
-  // Farmer Information
+  // Enhanced Farmer Information
   farmer: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -115,9 +210,13 @@ const productSchema = new mongoose.Schema({
     trim: true,
     maxlength: 200
   },
+  farmCoordinates: {
+    latitude: Number,
+    longitude: Number
+  },
 
-  // Location & Delivery
-  availableLocations: [{
+  // Enhanced Location & Delivery
+  availableRegions: [{
     type: String,
     trim: true
   }],
@@ -129,12 +228,32 @@ const productSchema = new mongoose.Schema({
     type: Number, // in hours
     default: 24
   },
+  deliveryPartners: [{
+    partnerId: String,
+    partnerName: String,
+    cost: Number,
+    estimatedTime: Number
+  }],
 
-  // Status & Visibility
+  // Enhanced Status & Visibility
   status: {
     type: String,
-    enum: ['active', 'inactive', 'out_of_stock', 'pending_approval', 'rejected'],
-    default: 'active' // Changed to 'active' for immediate visibility
+    enum: ['active', 'inactive', 'out_of_stock', 'pending_approval', 'rejected', 'suspended'],
+    default: 'pending_approval'
+  },
+  approvalStatus: {
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    reviewedAt: Date,
+    rejectionReason: String,
+    notes: String
   },
   isFeatured: {
     type: Boolean,
@@ -144,8 +263,13 @@ const productSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  visibility: {
+    type: String,
+    enum: ['public', 'private', 'region_limited'],
+    default: 'public'
+  },
 
-  // SEO & Discovery
+  // Enhanced SEO & Discovery
   tags: [{
     type: String,
     trim: true,
@@ -156,8 +280,12 @@ const productSchema = new mongoose.Schema({
     trim: true,
     lowercase: true
   }],
+  cropType: {
+    type: String,
+    enum: ['annual', 'perennial', 'seasonal', 'year_round']
+  },
 
-  // Statistics
+  // Enhanced Statistics
   views: {
     type: Number,
     default: 0
@@ -179,6 +307,31 @@ const productSchema = new mongoose.Schema({
   reviewCount: {
     type: Number,
     default: 0
+  },
+  returnRate: {
+    type: Number,
+    default: 0
+  },
+  qualityIssues: {
+    type: Number,
+    default: 0
+  },
+
+  // Commission and Pricing
+  commissionRate: {
+    type: Number,
+    default: 5, // percentage
+    min: 0,
+    max: 100
+  },
+  subsidyAmount: {
+    type: Number,
+    default: 0
+  },
+  subsidyType: {
+    type: String,
+    enum: ['government', 'platform', 'none'],
+    default: 'none'
   },
 
   // Timestamps
@@ -260,5 +413,7 @@ productSchema.methods.releaseReservedStock = function(quantity) {
   }
   return false;
 };
+
+productSchema.plugin(mongoosePaginate);
 
 module.exports = mongoose.model('Product', productSchema); 

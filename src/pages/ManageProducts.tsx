@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -21,70 +20,16 @@ import {
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+import { apiService } from '@/lib/api';
 
 const ManageProducts = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  
-  // Mock data - replace with actual API data
-  const [products, setProducts] = useState([
-    {
-      id: '1',
-      name: 'Organic Tomatoes',
-      category: 'Vegetables',
-      price: 45,
-      unit: 'kg',
-      quantity: 150,
-      status: 'active',
-      orders: 23,
-      revenue: 10350,
-      image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=400',
-      harvestDate: '2024-06-20',
-      createdDate: '2024-06-21'
-    },
-    {
-      id: '2',
-      name: 'Fresh Spinach',
-      category: 'Vegetables',
-      price: 30,
-      unit: 'kg',
-      quantity: 0,
-      status: 'out_of_stock',
-      orders: 15,
-      revenue: 4500,
-      image: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=400',
-      harvestDate: '2024-06-18',
-      createdDate: '2024-06-19'
-    },
-    {
-      id: '3',
-      name: 'Wheat Seeds',
-      category: 'Seeds',
-      price: 85,
-      unit: 'kg',
-      quantity: 200,
-      status: 'pending_approval',
-      orders: 0,
-      revenue: 0,
-      image: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=400',
-      harvestDate: '2024-06-22',
-      createdDate: '2024-06-23'
-    },
-    {
-      id: '4',
-      name: 'Organic Carrots',
-      category: 'Vegetables',
-      price: 35,
-      unit: 'kg',
-      quantity: 80,
-      status: 'active',
-      orders: 12,
-      revenue: 4200,
-      image: 'https://images.unsplash.com/photo-1447175008436-054170c2e979?w=400',
-      harvestDate: '2024-06-19',
-      createdDate: '2024-06-20'
-    }
-  ]);
+
+  // Fetch products from backend
+  const { data, isLoading, error } = useQuery(['products'], () => apiService.getProducts());
+  const products = data?.products || [];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -114,17 +59,19 @@ const ManageProducts = () => {
     }
   };
 
-  const handleDeleteProduct = (productId: string) => {
-    setProducts(products.filter(p => p.id !== productId));
-    toast.success('Product deleted successfully');
-  };
-
-  const filteredProducts = products.filter(product => {
+  const filteredProducts = products.filter((product: any) => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || product.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-gray-500">Loading products...</div>;
+  }
+  if (error) {
+    return <div className="p-8 text-center text-red-500">Failed to load products.</div>;
+  }
 
   return (
     <DashboardLayout userRole="farmer">
@@ -154,7 +101,7 @@ const ManageProducts = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-blue-600">
-                {products.filter(p => p.status === 'active').length}
+                {products.filter((p: any) => p.status === 'active').length}
               </div>
               <div className="text-sm text-gray-600">Active</div>
             </CardContent>
@@ -162,7 +109,7 @@ const ManageProducts = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-red-600">
-                {products.filter(p => p.status === 'out_of_stock').length}
+                {products.filter((p: any) => p.status === 'out_of_stock').length}
               </div>
               <div className="text-sm text-gray-600">Out of Stock</div>
             </CardContent>
@@ -170,7 +117,7 @@ const ManageProducts = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-yellow-600">
-                {products.filter(p => p.status === 'pending_approval').length}
+                {products.filter((p: any) => p.status === 'pending_approval').length}
               </div>
               <div className="text-sm text-gray-600">Pending</div>
             </CardContent>
@@ -213,30 +160,28 @@ const ManageProducts = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {filteredProducts.map((product) => (
-                <div key={product.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50">
+              {filteredProducts.map((product: any) => (
+                <div key={product._id || product.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50">
                   <img
-                    src={product.image}
+                    src={product.images?.[0]?.url || '/placeholder.svg'}
                     alt={product.name}
                     className="w-16 h-16 object-cover rounded-lg"
                   />
-                  
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold">{product.name}</h3>
                       {getStatusBadge(product.status)}
                     </div>
                     <div className="text-sm text-gray-600 mb-2">
-                      {product.category} • ₹{product.price}/{product.unit}
+                      {product.category} • ₹{product.basePrice || product.price}/{product.unit}
                     </div>
                     <div className="flex items-center gap-4 text-xs text-gray-500">
                       <span>Stock: {product.quantity} {product.unit}s</span>
-                      <span>Orders: {product.orders}</span>
-                      <span>Revenue: ₹{product.revenue.toLocaleString()}</span>
-                      <span>Listed: {new Date(product.createdDate).toLocaleDateString()}</span>
+                      <span>Orders: {product.orders || 0}</span>
+                      <span>Revenue: ₹{product.totalRevenue?.toLocaleString() || 0}</span>
+                      <span>Listed: {product.createdAt ? new Date(product.createdAt).toLocaleDateString() : ''}</span>
                     </div>
                   </div>
-
                   <div className="flex items-center gap-2">
                     <Button variant="ghost" size="sm">
                       <Eye className="w-4 h-4" />
@@ -253,10 +198,7 @@ const ManageProducts = () => {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem>Duplicate</DropdownMenuItem>
                         <DropdownMenuItem>Mark Out of Stock</DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="text-red-600"
-                          onClick={() => handleDeleteProduct(product.id)}
-                        >
+                        <DropdownMenuItem className="text-red-600">
                           <Trash2 className="w-4 h-4 mr-2" />
                           Delete
                         </DropdownMenuItem>
@@ -266,7 +208,6 @@ const ManageProducts = () => {
                 </div>
               ))}
             </div>
-
             {filteredProducts.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 No products found matching your criteria.

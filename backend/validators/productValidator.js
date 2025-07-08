@@ -22,9 +22,22 @@ const createProductValidation = [
     .isLength({ max: 50 })
     .withMessage('Subcategory must be less than 50 characters'),
   
+  body('basePrice')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('basePrice must be a positive number'),
+  
   body('price')
+    .optional()
     .isFloat({ min: 0 })
     .withMessage('Price must be a positive number'),
+  
+  body().custom(body => {
+    if (body.basePrice === undefined && body.price === undefined) {
+      throw new Error('Either basePrice or price is required');
+    }
+    return true;
+  }),
   
   body('unit')
     .isIn(['kg', 'gram', 'piece', 'dozen', 'box', 'bunch', 'liter', 'pack'])

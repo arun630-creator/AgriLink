@@ -12,12 +12,13 @@ import {
   Plus,
   ListChecks,
   TrendingUp,
-  Shield
+  Shield,
+  MessageSquare
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  userRole: 'farmer' | 'buyer' | 'admin';
+  userRole: 'farmer' | 'buyer' | 'admin' | 'super_admin' | 'produce_manager' | 'logistics_coordinator' | 'farmer_support' | 'communication_manager' | 'analytics_manager' | 'pricing_manager';
 }
 
 const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
@@ -42,14 +43,22 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
           { icon: Settings, label: 'Settings', href: '/buyer/settings' }
         ];
       case 'admin':
+      case 'super_admin':
+      case 'produce_manager':
+      case 'logistics_coordinator':
+      case 'farmer_support':
+      case 'communication_manager':
+      case 'analytics_manager':
+      case 'pricing_manager':
         return [
           { icon: Home, label: 'Dashboard', href: '/admin-dashboard' },
-          { icon: Users, label: 'Farmers', href: '/admin/farmers' },
+          { icon: Users, label: 'Users', href: '/admin/users' },
           { icon: Package, label: 'Products', href: '/admin/products' },
           { icon: ShoppingCart, label: 'Orders', href: '/admin/orders' },
-          { icon: Shield, label: 'Approvals', href: '/admin/approvals' },
+          { icon: Shield, label: 'Quality Control', href: '/admin/quality' },
+          { icon: MessageSquare, label: 'Communication', href: '/admin/communication' },
           { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
-          { icon: Settings, label: 'Settings', href: '/admin/settings' }
+          { icon: Settings, label: 'System', href: '/admin/system' }
         ];
       default:
         return [];

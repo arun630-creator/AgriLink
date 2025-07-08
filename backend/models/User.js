@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const mongoosePaginate = require('mongoose-paginate-v2');
 
 const userSchema = new mongoose.Schema({
   // Basic Information
@@ -25,7 +26,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['buyer', 'farmer', 'admin'],
+    enum: ['buyer', 'farmer', 'admin', 'super_admin', 'produce_manager', 'logistics_coordinator', 'farmer_support'],
     default: 'buyer'
   },
   
@@ -47,7 +48,7 @@ const userSchema = new mongoose.Schema({
     default: Date.now
   },
   
-  // Farmer Specific Information
+  // Enhanced Farmer Specific Information
   farmName: {
     type: String,
     default: ''
@@ -60,10 +61,52 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  farmAddress: {
+    address: String,
+    city: String,
+    state: String,
+    pincode: String,
+    coordinates: {
+      latitude: Number,
+      longitude: Number
+    }
+  },
+  cropSpecialties: [{
+    type: String,
+    enum: ['Vegetables', 'Fruits', 'Grains', 'Herbs', 'Seeds', 'Dairy', 'Other']
+  }],
   certifications: [{
     type: String,
-    default: []
+    enum: ['Organic', 'GAP', 'HACCP', 'ISO', 'FSSAI', 'Fair Trade', 'Rainforest Alliance', 'Other']
   }],
+  verificationStatus: {
+    type: String,
+    enum: ['pending', 'verified', 'rejected', 'suspended'],
+    default: 'pending'
+  },
+  verificationDocuments: [{
+    type: {
+      type: String,
+      enum: ['aadhar', 'pan', 'land_document', 'certification', 'other']
+    },
+    url: String,
+    verified: {
+      type: Boolean,
+      default: false
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  farmRegistrationNumber: String,
+  gstNumber: String,
+  bankDetails: {
+    accountNumber: String,
+    ifscCode: String,
+    accountHolderName: String,
+    bankName: String
+  },
   
   // Buyer Specific Information
   preferences: [{
@@ -73,6 +116,10 @@ const userSchema = new mongoose.Schema({
   favoriteCategories: [{
     type: String,
     default: []
+  }],
+  deliveryAddresses: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Address'
   }],
   
   // Notification Preferences
@@ -121,8 +168,9 @@ const userSchema = new mongoose.Schema({
     default: 'inr'
   },
   
-  // Stats (for analytics)
+  // Enhanced Stats (for analytics)
   stats: {
+    // Buyer stats
     ordersPlaced: {
       type: Number,
       default: 0
@@ -139,7 +187,7 @@ const userSchema = new mongoose.Schema({
       type: Number,
       default: 0
     },
-    // For farmers
+    // Farmer stats
     productsListed: {
       type: Number,
       default: 0
@@ -153,6 +201,23 @@ const userSchema = new mongoose.Schema({
       default: 0
     },
     monthlyRevenue: {
+      type: Number,
+      default: 0
+    },
+    totalRevenue: {
+      type: Number,
+      default: 0
+    },
+    // Performance metrics
+    onTimeDelivery: {
+      type: Number,
+      default: 0
+    },
+    qualityScore: {
+      type: Number,
+      default: 0
+    },
+    customerSatisfaction: {
       type: Number,
       default: 0
     }
@@ -170,6 +235,15 @@ const userSchema = new mongoose.Schema({
   isVerified: {
     type: Boolean,
     default: false
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  accountStatus: {
+    type: String,
+    enum: ['active', 'suspended', 'banned', 'pending_verification'],
+    default: 'pending_verification'
   },
   
   // Two-Factor Authentication
@@ -191,7 +265,82 @@ const userSchema = new mongoose.Schema({
   lastPasswordChange: {
     type: Date,
     default: Date.now
-  }
+  },
+  
+  // Admin specific fields
+  adminPermissions: [{
+    type: String,
+    enum: [
+      'farmer_approval',
+      'product_approval', 
+      'pricing_management',
+      'logistics_management',
+      'user_management',
+      'analytics_access',
+      'communication_management',
+      'payment_management',
+      'settings_management'
+    ]
+  }],
+  
+  // Activity tracking
+  lastActivity: {
+    type: Date,
+    default: Date.now
+  },
+  loginHistory: [{
+    timestamp: {
+      type: Date,
+      default: Date.now
+    },
+    ip: String,
+    userAgent: String,
+    location: String
+  }],
+  
+  // Customer flagging
+  flagged: {
+    type: Boolean,
+    default: false
+  },
+  flagReason: {
+    type: String
+  },
+  flagHistory: [{
+    reason: String,
+    flaggedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    flaggedAt: {
+      type: Date,
+      default: Date.now
+    },
+    resolved: {
+      type: Boolean,
+      default: false
+    },
+    resolvedAt: Date,
+    notes: String
+  }],
+  
+  // Customer feedback logs
+  feedbacks: [{
+    order: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Order'
+    },
+    rating: {
+      type: Number,
+      min: 1,
+      max: 5
+    },
+    comment: String,
+    submittedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
   
 }, { 
   timestamps: true,
@@ -251,5 +400,7 @@ userSchema.virtual('statusText').get(function() {
     return 'Premium Buyer';
   }
 });
+
+userSchema.plugin(mongoosePaginate);
 
 module.exports = mongoose.model('User', userSchema); 

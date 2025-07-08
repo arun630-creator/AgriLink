@@ -14,7 +14,7 @@ interface Product {
   quantity: number;
   category: string;
   description: string;
-  image: string;
+  images?: Array<{ url: string; alt?: string; isPrimary?: boolean }>;
   farmer: {
     name: string;
     location: string;
@@ -67,7 +67,7 @@ const ProductCard = ({ product, showFarmerInfo = true }: ProductCardProps) => {
     >
       <div className="relative">
         <img 
-          src={product.image} 
+          src={product.images?.[0]?.url || '/placeholder.svg'}
           alt={product.name}
           className="w-full h-40 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
         />

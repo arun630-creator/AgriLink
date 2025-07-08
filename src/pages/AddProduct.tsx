@@ -53,7 +53,8 @@ const AddProduct = () => {
     isFeatured: false,
     isSeasonal: false,
     tags: [],
-    searchKeywords: []
+    searchKeywords: [],
+    basePrice: 0
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -84,8 +85,12 @@ const AddProduct = () => {
       const date = new Date(value + 'T00:00:00.000Z');
       value = date.toISOString();
     }
-    
-    setFormData(prev => ({ ...prev, [field]: value }));
+    // Always set basePrice when price is set
+    if (field === 'price') {
+      setFormData(prev => ({ ...prev, price: value, basePrice: value }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -228,13 +233,13 @@ const AddProduct = () => {
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       return;
     }
-
     setIsSubmitting(true);
-    createProductMutation.mutate(formData);
+    // Always set basePrice to price before submitting
+    const payload = { ...formData, basePrice: formData.price };
+    createProductMutation.mutate(payload);
   };
 
   return (

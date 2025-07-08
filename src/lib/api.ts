@@ -198,6 +198,7 @@ export interface CreateProductData {
   category: Product['category'];
   subcategory?: string;
   price: number;
+  basePrice?: number;
   unit: Product['unit'];
   minOrderQuantity?: number;
   maxOrderQuantity?: number;
@@ -1104,6 +1105,57 @@ class ApiService {
     const response = await fetch(`${this.baseURL}/payment/available-methods`, {
       method: 'GET',
       headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return handleResponse(response);
+  }
+
+  // Generic HTTP methods for admin endpoints
+  async get(url: string): Promise<any> {
+    const token = getAuthToken();
+    const response = await fetch(`${this.baseURL}${url}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json',
+      },
+    });
+    return handleResponse(response);
+  }
+
+  async post(url: string, data?: any): Promise<any> {
+    const token = getAuthToken();
+    const response = await fetch(`${this.baseURL}${url}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json',
+      },
+      body: data ? JSON.stringify(data) : undefined,
+    });
+    return handleResponse(response);
+  }
+
+  async put(url: string, data?: any): Promise<any> {
+    const token = getAuthToken();
+    const response = await fetch(`${this.baseURL}${url}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json',
+      },
+      body: data ? JSON.stringify(data) : undefined,
+    });
+    return handleResponse(response);
+  }
+
+  async delete(url: string): Promise<any> {
+    const token = getAuthToken();
+    const response = await fetch(`${this.baseURL}${url}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
         'Content-Type': 'application/json',
       },
     });

@@ -121,7 +121,7 @@ const Marketplace = () => {
 
   // Transform API data to match ProductCard expectations
   const transformProductForCard = (product: Product) => ({
-    id: product.id,
+    id: product.id || product._id,
     name: product.name,
     price: product.price,
     unit: product.unit,

@@ -1,14 +1,15 @@
-
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MapPin, Calendar, Shield, Video, Flag, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Shield, Video, Flag, ShoppingCart, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import FarmerReputationBadge from '@/components/FarmerReputationBadge';
 import ReviewSystem from '@/components/ReviewSystem';
+import { useQuery } from '@tanstack/react-query';
+import { apiService } from '@/lib/api';
 
 interface DetailedProduct {
   id: string;
@@ -18,7 +19,12 @@ interface DetailedProduct {
   quantity: number;
   category: string;
   description: string;
-  image: string;
+  images: Array<{
+    id: string;
+    url: string;
+    alt?: string;
+    isPrimary?: boolean;
+  }>;
   farmer: {
     name: string;
     location: string;
@@ -51,68 +57,64 @@ interface DetailedProduct {
     quantity: number;
     packaging: number;
   };
+  qualityGrade?: string;
+  certifications?: string[];
+  deliveryTime?: number;
+  status: string;
 }
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [product, setProduct] = useState<DetailedProduct | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
-  // Mock product data - in real app, fetch based on ID
-  useEffect(() => {
-    const mockProduct: DetailedProduct = {
-      id: id || '1',
-      name: 'Organic Tomatoes',
-      price: 45,
-      unit: 'kg',
-      quantity: 150,
-      category: 'Vegetables',
-      description: 'Fresh organic tomatoes grown without pesticides in the fertile valleys of Maharashtra. These tomatoes are hand-picked at peak ripeness to ensure maximum flavor and nutritional value. Perfect for cooking, salads, and sauces.',
-      image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=800',
-      farmer: {
-        name: 'Green Valley Farm',
-        location: 'Maharashtra',
-        rating: 4.8,
-        reputation: {
-          farmerId: 'farmer-1',
-          farmerName: 'Green Valley Farm',
-          totalOrders: 245,
-          fulfillmentRate: 97,
-          averageRating: 4.8,
-          returnRate: 2,
-          responseTime: '< 2 hours',
-          qualityBadges: ['Organic Certified', 'Fresh Guarantee', 'Quality Assured'],
-          joinedDate: '2023-01-15'
-        }
-      },
-      harvestDate: '2024-01-15',
-      organic: true,
-      videos: [
-        {
-          id: 'v1',
-          url: 'https://example.com/video1.mp4',
-          title: 'Farm Tour - Tomato Fields',
-          duration: '0:25'
-        },
-        {
-          id: 'v2',
-          url: 'https://example.com/video2.mp4',
-          title: 'Harvesting Process',
-          duration: '0:18'
-        }
-      ],
-      aggregateScore: 4.6,
-      totalReviews: 89,
-      qualityMetrics: {
-        taste: 4.7,
-        freshness: 4.8,
-        quantity: 4.5,
-        packaging: 4.4
-      }
-    };
-    setProduct(mockProduct);
-  }, [id]);
+  // Fetch real product data
+  const { data: product, isLoading, error } = useQuery({
+    queryKey: ['product', id],
+    queryFn: () => apiService.getProduct(id!),
+    enabled: !!id,
+  });
+
+  // Gallery logic
+  const images = product?.images && product.images.length > 0 ? product.images : [{ url: '/placeholder.svg', id: 'placeholder' }];
+  const mainImage = images[selectedImageIndex]?.url || '/placeholder.svg';
+
+  // Defensive values
+  const price = product.price ?? product.basePrice ?? 0;
+  const quantity = product.quantity ?? 0;
+  const unit = product.unit ?? '';
+  const harvestDate = product.harvestDate ? new Date(product.harvestDate).toLocaleDateString() : 'N/A';
+  const farmerName = product.farmer?.name || 'Unknown';
+  const farmerLocation = product.farmer?.location || 'Unknown';
+  const farmerRating = product.farmer?.rating ?? 0;
+  const qualityMetrics = product.qualityMetrics || {};
+  const isOrganic = product.organic;
+  const isInStock = (product.status === 'active') && quantity > 0;
+  const certifications = product.certifications || [];
+  const deliveryTime = product.deliveryTime ?? 24;
+  const description = product.description || '';
+  const category = product.category || '';
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p>Loading product details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center text-red-500">
+          <p>Product not found or failed to load.</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleAddToCart = () => {
     if (product) {
@@ -157,17 +159,6 @@ const ProductDetail = () => {
     }
   ];
 
-  if (!product) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p>Loading product details...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -185,7 +176,7 @@ const ProductDetail = () => {
             </Button>
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-gray-900">{product.name}</h1>
-              <p className="text-gray-600">{product.category}</p>
+              <p className="text-gray-600 text-sm">{category}</p>
             </div>
             <Button
               variant="outline"
@@ -202,150 +193,155 @@ const ProductDetail = () => {
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Product Images & Videos */}
+          {/* Product Gallery */}
           <div className="space-y-4">
-            <div className="aspect-square overflow-hidden rounded-lg bg-white shadow-md">
+            <div className="aspect-square overflow-hidden rounded-lg bg-white shadow-md flex items-center justify-center">
               <img
-                src={product.image}
+                src={mainImage}
                 alt={product.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain max-h-[400px]"
               />
             </div>
-            
-            {/* Videos Section */}
-            {product.videos && product.videos.length > 0 && (
-              <Card>
+            <div className="flex gap-2 mt-2">
+              {images.map((img, idx) => (
+                <button
+                  key={img.id || idx}
+                  onClick={() => setSelectedImageIndex(idx)}
+                  className={`border rounded-md p-1 bg-white focus:outline-none ${selectedImageIndex === idx ? 'border-green-600' : 'border-gray-200'}`}
+                  style={{ width: 64, height: 64 }}
+                  type="button"
+                >
+                  <img
+                    src={img.url}
+                    alt={img.alt || product.name}
+                    className="object-contain w-full h-full"
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Product Info & Actions */}
+          <div className="space-y-6">
+            {/* Price, Stock, Badges */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-3xl font-bold text-green-600">₹{price}</span>
+                <span className="text-gray-600 text-base">per {unit}</span>
+                {isInStock ? (
+                  <Badge className="bg-green-100 text-green-800 ml-2">In Stock</Badge>
+                ) : (
+                  <Badge className="bg-red-100 text-red-800 ml-2">Out of Stock</Badge>
+                )}
+                {isOrganic && <Badge className="bg-green-600 text-white ml-2">Organic</Badge>}
+                {certifications.length > 0 && certifications.map(cert => (
+                  <Badge key={cert} className="bg-blue-100 text-blue-800 ml-2">{cert}</Badge>
+                ))}
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                {quantity} {unit}{quantity === 1 ? '' : 's'} available
+              </p>
+            </div>
+
+            {/* Key Details */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <Calendar className="w-4 h-4" />
+                <span>Harvested: {harvestDate}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <Shield className="w-4 h-4" />
+                <span>Quality Grade: {product.qualityGrade || 'Standard'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <MapPin className="w-4 h-4" />
+                <span>Seller: {farmerName} ({farmerLocation})</span>
+                <Star className="w-4 h-4 text-yellow-400 ml-1" />
+                <span>{farmerRating.toFixed(1)}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <span>Delivery: {deliveryTime} hrs</span>
+              </div>
+            </div>
+
+            {/* Add to Cart/Buy Now */}
+            <div className="flex flex-col gap-3 mt-6">
+              <Button
+                onClick={handleAddToCart}
+                disabled={!isInStock}
+                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 py-3 text-lg"
+              >
+                {isInStock ? (
+                  <>
+                    <ShoppingCart className="w-5 h-5 mr-2" />
+                    Add to Cart - ₹{price}
+                  </>
+                ) : (
+                  'Out of Stock'
+                )}
+              </Button>
+              {/* <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 text-lg">Buy Now</Button> */}
+            </div>
+
+            {/* Description */}
+            <div className="mt-6">
+              <h2 className="text-lg font-semibold mb-2">Product Description</h2>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-line">{description}</p>
+            </div>
+
+            {/* Quality Metrics (if available) */}
+            {(qualityMetrics.taste !== undefined || qualityMetrics.freshness !== undefined || qualityMetrics.quantity !== undefined || qualityMetrics.packaging !== undefined) && (
+              <Card className="mt-6">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Video className="w-5 h-5" />
-                    Farm Videos
-                  </CardTitle>
+                  <CardTitle>Quality Metrics</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
-                    {product.videos.map((video) => (
-                      <div key={video.id} className="bg-gray-100 rounded-lg p-4 text-center">
-                        <Video className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm font-medium">{video.title}</p>
-                        <p className="text-xs text-gray-500">{video.duration}</p>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {qualityMetrics.taste !== undefined ? qualityMetrics.taste.toFixed(1) : 'N/A'}
                       </div>
-                    ))}
+                      <div className="text-sm text-gray-600">Taste</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {qualityMetrics.freshness !== undefined ? qualityMetrics.freshness.toFixed(1) : 'N/A'}
+                      </div>
+                      <div className="text-sm text-gray-600">Freshness</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {qualityMetrics.quantity !== undefined ? qualityMetrics.quantity.toFixed(1) : 'N/A'}
+                      </div>
+                      <div className="text-sm text-gray-600">Quantity Match</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {qualityMetrics.packaging !== undefined ? qualityMetrics.packaging.toFixed(1) : 'N/A'}
+                      </div>
+                      <div className="text-sm text-gray-600">Packaging</div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             )}
           </div>
-
-          {/* Product Info */}
-          <div className="space-y-6">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Badge className="bg-green-100 text-green-800">{product.category}</Badge>
-                {product.organic && (
-                  <Badge className="bg-green-600 text-white">Organic</Badge>
-                )}
-                <Badge className="bg-purple-100 text-purple-800">
-                  <Shield className="w-3 h-3 mr-1" />
-                  Quality Assured
-                </Badge>
-              </div>
-
-              <div className="mb-4">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-green-600">₹{product.price}</span>
-                  <span className="text-gray-600">per {product.unit}</span>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  {product.quantity} {product.unit}s available
-                </p>
-              </div>
-
-              <p className="text-gray-700 leading-relaxed">{product.description}</p>
-
-              <div className="flex items-center gap-4 text-sm text-gray-600 mt-4">
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
-                  <span>Harvested: {new Date(product.harvestDate).toLocaleDateString()}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <MapPin className="w-4 h-4" />
-                  <span>{product.farmer.location}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Quality Metrics */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quality Metrics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{product.qualityMetrics.taste.toFixed(1)}</div>
-                    <div className="text-sm text-gray-600">Taste</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{product.qualityMetrics.freshness.toFixed(1)}</div>
-                    <div className="text-sm text-gray-600">Freshness</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{product.qualityMetrics.quantity.toFixed(1)}</div>
-                    <div className="text-sm text-gray-600">Quantity Match</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{product.qualityMetrics.packaging.toFixed(1)}</div>
-                    <div className="text-sm text-gray-600">Packaging</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Action Button */}
-            <Button
-              onClick={handleAddToCart}
-              disabled={product.quantity === 0}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 py-3 text-lg"
-            >
-              {product.quantity > 0 ? (
-                <>
-                  <ShoppingCart className="w-5 h-5 mr-2" />
-                  Add to Cart - ₹{product.price}
-                </>
-              ) : (
-                'Out of Stock'
-              )}
-            </Button>
-          </div>
         </div>
 
-        {/* Tabs for detailed information */}
-        <Tabs defaultValue="seller" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="seller">Seller Information</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews & Ratings</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="seller" className="space-y-4">
-            <FarmerReputationBadge 
-              reputation={product.farmer.reputation} 
-              showDetails={true}
-            />
-          </TabsContent>
-
-          <TabsContent value="reviews" className="space-y-4">
-            <ReviewSystem
-              productId={product.id}
-              reviews={mockReviews}
-              canReview={true}
-              onSubmitReview={(review) => {
-                console.log('New review submitted:', review);
-                toast.success('Review submitted successfully!');
-              }}
-              onFlagProduct={handleFlagProduct}
-            />
-          </TabsContent>
-        </Tabs>
+        {/* Reviews & Ratings */}
+        <div className="mt-10">
+          <h2 className="text-lg font-semibold mb-4">Reviews & Ratings</h2>
+          <ReviewSystem
+            productId={product.id}
+            reviews={mockReviews}
+            canReview={true}
+            onSubmitReview={(review) => {
+              console.log('New review submitted:', review);
+              toast.success('Review submitted successfully!');
+            }}
+            onFlagProduct={handleFlagProduct}
+          />
+        </div>
       </div>
     </div>
   );
