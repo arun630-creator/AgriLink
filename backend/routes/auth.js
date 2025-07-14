@@ -43,6 +43,11 @@ router.put('/profile', auth, validateProfileUpdate, authController.updateProfile
 // Change password (protected)
 router.put('/change-password', auth, validatePasswordChange, authController.changePassword);
 
+// Password reset routes
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
+router.get('/verify-reset-token/:token', authController.verifyResetToken);
+
 // Get user stats (protected)
 router.get('/stats', auth, authController.getStats);
 

@@ -10,8 +10,10 @@ interface CartItem {
   quantity: number;
   image: string;
   farmer: {
+    id: string;
     name: string;
     location: string;
+    rating: number;
   };
   maxQuantity: number;
 }
@@ -47,6 +49,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [cartItems]);
 
   const addToCart = (product: any) => {
+    console.log('Adding to cart:', product);
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item.id === product.id);
       
@@ -55,7 +58,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           toast.error('Cannot add more than available quantity');
           return prevItems;
         }
-        
         toast.success('Item quantity updated in cart');
         return prevItems.map(item =>
           item.id === product.id
@@ -67,11 +69,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return [...prevItems, {
           id: product.id,
           name: product.name,
-          price: product.price,
+          price: product.price ?? product.basePrice ?? 0,
           unit: product.unit,
           quantity: 1,
-          image: product.image,
-          farmer: product.farmer,
+          image: (product.images && product.images.length > 0)
+            ? (typeof product.images[0] === 'string'
+                ? (product.images[0].startsWith('/uploads/') ? 'http://localhost:5000' + product.images[0] : product.images[0])
+                : (product.images[0].url.startsWith('/uploads/') ? 'http://localhost:5000' + product.images[0].url : product.images[0].url)
+              )
+            : '/placeholder.svg',
+          farmer: {
+            id: product.farmer.id || product.farmer._id, // store the ID
+            name: product.farmer.name,
+            location: product.farmer.location,
+            rating: product.farmer.rating
+          },
           maxQuantity: product.quantity
         }];
       }
@@ -113,7 +125,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const getTotalPrice = () => {
-    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return cartItems.reduce((total, item) => total + ((item.price ?? 0) * item.quantity), 0);
   };
 
   // Validate cart items by checking if products still exist

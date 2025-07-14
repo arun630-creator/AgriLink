@@ -201,17 +201,23 @@ const Checkout = () => {
 
       // Prepare order data
       const orderPayload = {
+        region: orderData.deliveryAddress.state, // Use state as region
         items: cartItems.map(item => ({
-          id: item.id, // Cart items only have 'id' field
+          id: item.id, // Backend expects 'id' as ObjectId
           name: item.name,
           price: item.price,
           unit: item.unit,
-          quantity: item.quantity
+          quantity: item.quantity,
+          total: item.price * item.quantity, // Required by schema
+          farmer: item.farmer && item.farmer.id ? item.farmer.id : undefined, // If available
+          farmerName: item.farmer && item.farmer.name ? item.farmer.name : undefined,
+          // Add other fields if needed (harvestDate, etc.)
         })),
         deliveryAddress: orderData.deliveryAddress,
         paymentMethod: orderData.paymentMethod,
         notes: ''
       };
+      console.log('Order payload:', orderPayload);
 
       // Debug: Log the form data and order payload
       console.log('Form data:', JSON.stringify(orderData, null, 2));

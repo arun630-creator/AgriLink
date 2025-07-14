@@ -2,6 +2,7 @@ const Product = require('../models/Product');
 const User = require('../models/User');
 const fs = require('fs');
 const path = require('path');
+const Review = require('../models/Review');
 
 // Create a new product
 const createProduct = async (req, res) => {
@@ -178,6 +179,10 @@ const getProducts = async (req, res) => {
     const mappedProducts = products.map(product => ({
       ...product,
       id: product._id,
+      images: (product.images || []).map(img => ({
+        ...img,
+        id: img._id
+      })),
       farmer: product.farmer ? {
         ...product.farmer,
         id: product.farmer._id
@@ -238,7 +243,10 @@ const getProduct = async (req, res) => {
       basePrice: product.basePrice,
       quantity: product.quantity ?? 0,
       harvestDate: product.harvestDate,
-      images: product.images || [],
+      images: (product.images || []).map(img => ({
+        ...img,
+        id: img._id
+      })),
       farmer: product.farmer ? {
         ...product.farmer,
         id: product.farmer._id
@@ -535,12 +543,26 @@ const getFarmerProducts = async (req, res) => {
       .limit(parseInt(limit))
       .lean();
 
+    // Map _id to id for frontend compatibility
+    const mappedProducts = products.map(product => ({
+      ...product,
+      id: product._id,
+      images: (product.images || []).map(img => ({
+        ...img,
+        id: img._id
+      })),
+      farmer: product.farmer ? {
+        ...product.farmer,
+        id: product.farmer._id
+      } : product.farmer
+    }));
+
     const total = await Product.countDocuments(query);
     const totalPages = Math.ceil(total / parseInt(limit));
 
     res.json({
       success: true,
-      products,
+      products: mappedProducts,
       pagination: {
         currentPage: parseInt(page),
         totalPages,
@@ -573,9 +595,23 @@ const getFeaturedProducts = async (req, res) => {
       .limit(parseInt(limit))
       .lean();
 
+    // Map _id to id for frontend compatibility
+    const mappedProducts = products.map(product => ({
+      ...product,
+      id: product._id,
+      images: (product.images || []).map(img => ({
+        ...img,
+        id: img._id
+      })),
+      farmer: product.farmer ? {
+        ...product.farmer,
+        id: product.farmer._id
+      } : product.farmer
+    }));
+
     res.json({
       success: true,
-      products
+      products: mappedProducts
     });
   } catch (error) {
     console.error('Error fetching featured products:', error);
@@ -639,9 +675,23 @@ const searchProducts = async (req, res) => {
       .limit(20)
       .lean();
 
+    // Map _id to id for frontend compatibility
+    const mappedProducts = products.map(product => ({
+      ...product,
+      id: product._id,
+      images: (product.images || []).map(img => ({
+        ...img,
+        id: img._id
+      })),
+      farmer: product.farmer ? {
+        ...product.farmer,
+        id: product.farmer._id
+      } : product.farmer
+    }));
+
     res.json({
       success: true,
-      products,
+      products: mappedProducts,
       query: q
     });
   } catch (error) {
@@ -649,6 +699,128 @@ const searchProducts = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error searching products',
+      error: error.message
+    });
+  }
+};
+
+// Get reviews for a product
+const getProductReviews = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reviews = await Review.find({ product: id })
+      .populate('user', 'name avatar')
+      .sort({ createdAt: -1 });
+    res.json({ success: true, reviews });
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    res.status(500).json({ success: false, message: 'Error fetching reviews', error: error.message });
+  }
+};
+
+// Add a review to a product
+const addProductReview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rating, comment } = req.body;
+    const userId = req.user.id;
+
+    // Prevent duplicate reviews by the same user for the same product
+    const existing = await Review.findOne({ product: id, user: userId });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'You have already reviewed this product.' });
+    }
+
+    const review = new Review({
+      product: id,
+      user: userId,
+      rating,
+      comment,
+      verified: true // You can add logic to verify purchase
+    });
+    await review.save();
+    
+    // Populate user info for response
+    await review.populate('user', 'name avatar');
+    
+    res.status(201).json({ success: true, review });
+  } catch (error) {
+    console.error('Error adding review:', error);
+    res.status(500).json({ success: false, message: 'Error adding review', error: error.message });
+  }
+};
+
+// Upload review media (images/videos)
+const uploadReviewMedia = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const { mediaType } = req.body; // 'image' or 'video'
+    const files = req.files;
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No files uploaded'
+      });
+    }
+
+    // Find the review
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found'
+      });
+    }
+
+    // Check if user owns the review
+    if (review.user.toString() !== req.user.id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only upload media for your own reviews'
+      });
+    }
+
+    const uploadedMedia = [];
+
+    for (const file of files) {
+      const mediaUrl = `/uploads/reviews/${file.filename}`;
+      
+      if (mediaType === 'image') {
+        review.images.push({
+          url: mediaUrl,
+          alt: file.originalname,
+          uploadedAt: new Date()
+        });
+      } else if (mediaType === 'video') {
+        review.videos.push({
+          url: mediaUrl,
+          title: file.originalname,
+          uploadedAt: new Date()
+        });
+      }
+
+      uploadedMedia.push({
+        url: mediaUrl,
+        filename: file.filename,
+        originalName: file.originalname
+      });
+    }
+
+    await review.save();
+    await review.populate('user', 'name avatar');
+
+    res.json({
+      success: true,
+      message: 'Media uploaded successfully',
+      review,
+      uploadedMedia
+    });
+  } catch (error) {
+    console.error('Error uploading review media:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading media',
       error: error.message
     });
   }
@@ -665,5 +837,8 @@ module.exports = {
   deleteProductImage,
   getFarmerProducts,
   getFeaturedProducts,
-  searchProducts
+  searchProducts,
+  getProductReviews,
+  addProductReview,
+  uploadReviewMedia
 }; 

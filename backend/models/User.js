@@ -267,6 +267,16 @@ const userSchema = new mongoose.Schema({
     default: Date.now
   },
   
+  // Password Reset
+  resetPasswordToken: {
+    type: String,
+    default: null
+  },
+  resetPasswordExpires: {
+    type: Date,
+    default: null
+  },
+  
   // Admin specific fields
   adminPermissions: [{
     type: String,

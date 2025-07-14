@@ -35,6 +35,7 @@ import { apiService } from '@/lib/api';
 import { RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { getPrimaryImageUrl } from '@/lib/utils';
 
 interface DashboardStats {
   users: {
@@ -478,9 +479,14 @@ const AdminDashboard = () => {
                   {pendingProducts.map((product: any) => (
                     <div key={product._id} className="flex items-center gap-4 p-4 border rounded-lg">
                       <img
-                        src={product.images?.[0]?.url || '/placeholder.svg'}
+                        src={getPrimaryImageUrl(product.images)}
                         alt={product.name}
                         className="w-16 h-16 object-cover rounded-lg"
+                        onError={(e) => {
+                          // Fallback to placeholder if image fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.src = '/placeholder.svg';
+                        }}
                       />
                       
                       <div className="flex-1">
@@ -636,9 +642,14 @@ const AdminDashboard = () => {
                 </DialogHeader>
                 <div className="flex gap-6 mt-2">
                   <img
-                    src={selectedProduct.images?.[0]?.url || '/placeholder.svg'}
+                    src={getPrimaryImageUrl(selectedProduct.images)}
                     alt={selectedProduct.name}
                     className="w-32 h-32 object-cover rounded-lg border"
+                    onError={(e) => {
+                      // Fallback to placeholder if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/placeholder.svg';
+                    }}
                   />
                   <div className="flex-1 space-y-2">
                     <h2 className="text-xl font-bold">{selectedProduct.name}</h2>

@@ -36,9 +36,10 @@ const createOrder = async (req, res) => {
     for (const cartItem of items) {
       const product = await Product.findById(cartItem.id || cartItem.product);
       if (!product) {
+        console.error('Product not found for cartItem:', cartItem);
         return res.status(404).json({
           success: false,
-          message: `Product ${cartItem.name} not found`
+          message: `Product ${cartItem.id || cartItem.product} not found`
         });
       }
 
@@ -56,16 +57,16 @@ const createOrder = async (req, res) => {
         });
       }
 
-      const itemTotal = product.price * cartItem.quantity;
+      const itemTotal = product.basePrice * cartItem.quantity;
       subtotal += itemTotal;
 
       processedItems.push({
         product: product._id,
         name: product.name,
-        price: product.price,
+        price: product.basePrice, // Always use basePrice
         unit: product.unit,
         quantity: cartItem.quantity,
-        total: itemTotal,
+        total: product.basePrice * cartItem.quantity, // Always use basePrice
         farmer: product.farmer,
         farmerName: product.farmerName || 'Unknown Farmer'
       });
@@ -85,7 +86,8 @@ const createOrder = async (req, res) => {
       deliveryFee,
       total,
       notes,
-      expectedDelivery: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 days from now
+      expectedDelivery: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+      region: deliveryAddress.state // Add region field for Order schema
     });
 
     await order.save();
@@ -156,6 +158,10 @@ const createOrder = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating order:', error);
+    console.error('Request body:', JSON.stringify(req.body, null, 2));
+    if (error && error.stack) {
+      console.error('Stack trace:', error.stack);
+    }
     res.status(500).json({
       success: false,
       message: 'Error creating order',

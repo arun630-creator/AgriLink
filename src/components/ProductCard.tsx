@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, MapPin, Calendar, Star } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
+import { getPrimaryImageUrl } from '@/lib/utils';
 
 interface Product {
   id: string;
@@ -67,9 +68,14 @@ const ProductCard = ({ product, showFarmerInfo = true }: ProductCardProps) => {
     >
       <div className="relative">
         <img 
-          src={product.images?.[0]?.url || '/placeholder.svg'}
+          src={getPrimaryImageUrl(product.images)}
           alt={product.name}
           className="w-full h-40 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={(e) => {
+            // Fallback to placeholder if image fails to load
+            const target = e.target as HTMLImageElement;
+            target.src = '/placeholder.svg';
+          }}
         />
         <div className="absolute top-2 left-2 flex gap-1 sm:gap-2">
           <Badge className={`${getCategoryColor(product.category)} text-xs sm:text-sm`}>

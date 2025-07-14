@@ -2,6 +2,7 @@
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
+    "crypto": "^1.0.1",
     "dotenv": "^17.0.1",
     "express": "^4.18.2",
     "express-validator": "^7.2.1",
@@ -10,6 +11,7 @@
     "mongoose": "^8.16.1",
     "mongoose-paginate-v2": "^1.9.1",
     "multer": "^2.0.1",
+    "nodemailer": "^7.0.5",
     "qrcode": "^1.5.4",
     "razorpay": "^2.9.6",
     "speakeasy": "^2.0.0"

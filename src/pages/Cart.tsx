@@ -73,9 +73,10 @@ const Cart = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-4">
                     <img
-                      src={item.image}
+                      src={item.image || '/placeholder.svg'}
                       alt={item.name}
                       className="w-20 h-20 object-cover rounded-lg"
+                      onError={e => { e.currentTarget.src = '/placeholder.svg'; }}
                     />
                     
                     <div className="flex-1">
@@ -84,7 +85,7 @@ const Cart = () => {
                       <p className="text-sm text-gray-500">{item.farmer.location}</p>
                       <div className="flex items-center space-x-2 mt-2">
                         <span className="text-xl font-bold text-green-600">
-                          ₹{item.price}
+                          ₹{(item.price ?? 0)}
                         </span>
                         <span className="text-gray-500">per {item.unit}</span>
                       </div>
@@ -116,7 +117,7 @@ const Cart = () => {
                     
                     <div className="text-right">
                       <div className="text-lg font-bold text-gray-900">
-                        ₹{(item.price * item.quantity).toFixed(2)}
+                        ₹{((item.price ?? 0) * item.quantity).toFixed(2)}
                       </div>
                       <Button
                         variant="ghost"

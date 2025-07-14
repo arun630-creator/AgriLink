@@ -27,6 +27,8 @@ import WhatsNew from "./pages/WhatsNew";
 import Farmers from "./pages/Farmers";
 import FarmerDetail from "./pages/FarmerDetail";
 import NotFound from "./pages/NotFound";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +62,8 @@ function App() {
               <Route path="/whats-new" element={<WhatsNew />} />
               <Route path="/farmers" element={<Farmers />} />
               <Route path="/farmers/:id" element={<FarmerDetail />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <Toaster />

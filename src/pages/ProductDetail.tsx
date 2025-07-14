@@ -10,58 +10,7 @@ import FarmerReputationBadge from '@/components/FarmerReputationBadge';
 import ReviewSystem from '@/components/ReviewSystem';
 import { useQuery } from '@tanstack/react-query';
 import { apiService } from '@/lib/api';
-
-interface DetailedProduct {
-  id: string;
-  name: string;
-  price: number;
-  unit: string;
-  quantity: number;
-  category: string;
-  description: string;
-  images: Array<{
-    id: string;
-    url: string;
-    alt?: string;
-    isPrimary?: boolean;
-  }>;
-  farmer: {
-    name: string;
-    location: string;
-    rating: number;
-    reputation: {
-      farmerId: string;
-      farmerName: string;
-      totalOrders: number;
-      fulfillmentRate: number;
-      averageRating: number;
-      returnRate: number;
-      responseTime: string;
-      qualityBadges: string[];
-      joinedDate: string;
-    };
-  };
-  harvestDate: string;
-  organic: boolean;
-  videos?: Array<{
-    id: string;
-    url: string;
-    title: string;
-    duration: string;
-  }>;
-  aggregateScore: number;
-  totalReviews: number;
-  qualityMetrics: {
-    taste: number;
-    freshness: number;
-    quantity: number;
-    packaging: number;
-  };
-  qualityGrade?: string;
-  certifications?: string[];
-  deliveryTime?: number;
-  status: string;
-}
+import { getImageUrl } from '@/lib/utils';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -75,26 +24,9 @@ const ProductDetail = () => {
     enabled: !!id,
   });
 
-  // Gallery logic
-  const images = product?.images && product.images.length > 0 ? product.images : [{ url: '/placeholder.svg', id: 'placeholder' }];
-  const mainImage = images[selectedImageIndex]?.url || '/placeholder.svg';
 
-  // Defensive values
-  const price = product.price ?? product.basePrice ?? 0;
-  const quantity = product.quantity ?? 0;
-  const unit = product.unit ?? '';
-  const harvestDate = product.harvestDate ? new Date(product.harvestDate).toLocaleDateString() : 'N/A';
-  const farmerName = product.farmer?.name || 'Unknown';
-  const farmerLocation = product.farmer?.location || 'Unknown';
-  const farmerRating = product.farmer?.rating ?? 0;
-  const qualityMetrics = product.qualityMetrics || {};
-  const isOrganic = product.organic;
-  const isInStock = (product.status === 'active') && quantity > 0;
-  const certifications = product.certifications || [];
-  const deliveryTime = product.deliveryTime ?? 24;
-  const description = product.description || '';
-  const category = product.category || '';
 
+  // Defensive: loading and error states
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -106,20 +38,46 @@ const ProductDetail = () => {
     );
   }
 
-  if (error || !product) {
+  // Defensive: error or missing product
+  if (error || !product || Object.keys(product).length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center text-red-500">
-          <p>Product not found or failed to load.</p>
+          <p>Product not found or failed to load. Please try again or select another product.</p>
         </div>
       </div>
     );
   }
 
+  // Gallery logic (defensive)
+  const images = Array.isArray(product.images) && product.images.length > 0
+    ? product.images.map(img => ({
+        ...img,
+        id: img.id || img._id || `img-${Math.random()}`
+      }))
+    : [{ url: '/placeholder.svg', id: 'placeholder' }];
+  const mainImage = getImageUrl(images[selectedImageIndex]?.url) || '/placeholder.svg';
+
+  // Defensive values for all fields
+  const price = product?.price ?? product?.basePrice ?? 0;
+  const quantity = product?.quantity ?? 0;
+  const unit = product?.unit ?? '';
+  const harvestDate = product?.harvestDate ? new Date(product.harvestDate).toLocaleDateString() : 'N/A';
+  const farmerName = product?.farmer?.name || 'Unknown';
+  const farmerLocation = product?.farmer?.location || 'Location not set';
+  const farmerRating = product?.farmer?.rating ?? 0;
+  const qualityMetrics = product?.qualityMetrics || {};
+  const isOrganic = product?.organic;
+  const isInStock = (product?.status === 'active') && quantity > 0;
+  const certifications = Array.isArray(product?.certifications) ? product.certifications : [];
+  const deliveryTime = product?.deliveryTime ?? 24;
+  const description = product?.description || '';
+  const category = product?.category || '';
+
   const handleAddToCart = () => {
     if (product) {
-      toast.success(`${product.name} added to cart!`);
-      console.log('Added to cart:', product.id);
+      toast.success(`${product?.name || 'Product'} added to cart!`);
+      console.log('Added to cart:', product?.id);
     }
   };
 
@@ -127,37 +85,6 @@ const ProductDetail = () => {
     toast.info('Product flagged for review');
     console.log('Product flagged:', product?.id);
   };
-
-  const mockReviews = [
-    {
-      id: '1',
-      buyerName: 'Priya S.',
-      rating: {
-        taste: 5,
-        freshness: 4,
-        quantity: 5,
-        overall: 5
-      },
-      comment: 'Excellent quality tomatoes! Very fresh and tasty. Perfect for making curry.',
-      images: ['https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400'],
-      date: '2024-01-20',
-      verified: true
-    },
-    {
-      id: '2',
-      buyerName: 'Rajesh K.',
-      rating: {
-        taste: 4,
-        freshness: 5,
-        quantity: 4,
-        overall: 4
-      },
-      comment: 'Good quality organic tomatoes. Delivery was prompt and packaging was good.',
-      images: [],
-      date: '2024-01-18',
-      verified: true
-    }
-  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -175,7 +102,7 @@ const ProductDetail = () => {
               Back
             </Button>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900">{product.name}</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{product?.name || 'Product'}</h1>
               <p className="text-gray-600 text-sm">{category}</p>
             </div>
             <Button
@@ -198,23 +125,33 @@ const ProductDetail = () => {
             <div className="aspect-square overflow-hidden rounded-lg bg-white shadow-md flex items-center justify-center">
               <img
                 src={mainImage}
-                alt={product.name}
+                alt={product?.name || 'Product'}
                 className="w-full h-full object-contain max-h-[400px]"
+                onError={(e) => {
+                  // Fallback to placeholder if image fails to load
+                  const target = e.target as HTMLImageElement;
+                  target.src = '/placeholder.svg';
+                }}
               />
             </div>
             <div className="flex gap-2 mt-2">
               {images.map((img, idx) => (
                 <button
-                  key={img.id || idx}
+                  key={img.id || img._id || idx}
                   onClick={() => setSelectedImageIndex(idx)}
                   className={`border rounded-md p-1 bg-white focus:outline-none ${selectedImageIndex === idx ? 'border-green-600' : 'border-gray-200'}`}
                   style={{ width: 64, height: 64 }}
                   type="button"
                 >
                   <img
-                    src={img.url}
-                    alt={img.alt || product.name}
+                    src={getImageUrl(img.url)}
+                    alt={img.alt || product?.name || 'Product'}
                     className="object-contain w-full h-full"
+                    onError={(e) => {
+                      // Fallback to placeholder if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/placeholder.svg';
+                    }}
                   />
                 </button>
               ))}
@@ -251,7 +188,7 @@ const ProductDetail = () => {
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <Shield className="w-4 h-4" />
-                <span>Quality Grade: {product.qualityGrade || 'Standard'}</span>
+                <span>Quality Grade: {product?.qualityGrade || 'Standard'}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <MapPin className="w-4 h-4" />
@@ -280,7 +217,6 @@ const ProductDetail = () => {
                   'Out of Stock'
                 )}
               </Button>
-              {/* <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 text-lg">Buy Now</Button> */}
             </div>
 
             {/* Description */}
@@ -332,14 +268,8 @@ const ProductDetail = () => {
         <div className="mt-10">
           <h2 className="text-lg font-semibold mb-4">Reviews & Ratings</h2>
           <ReviewSystem
-            productId={product.id}
-            reviews={mockReviews}
-            canReview={true}
-            onSubmitReview={(review) => {
-              console.log('New review submitted:', review);
-              toast.success('Review submitted successfully!');
-            }}
-            onFlagProduct={handleFlagProduct}
+            productId={id!}
+            productName={product?.name || 'Product'}
           />
         </div>
       </div>

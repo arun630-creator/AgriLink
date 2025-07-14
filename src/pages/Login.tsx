@@ -142,6 +142,16 @@ const Login = () => {
               >
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
+              
+              <div className="text-center mt-4">
+                <Button
+                  variant="link"
+                  onClick={() => navigate('/forgot-password')}
+                  className="p-0 h-auto text-green-600 hover:text-green-700 text-sm"
+                >
+                  Forgot your password?
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>

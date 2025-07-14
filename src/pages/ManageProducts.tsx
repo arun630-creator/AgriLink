@@ -22,13 +22,17 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { apiService } from '@/lib/api';
+import { getPrimaryImageUrl } from '@/lib/utils';
 
 const ManageProducts = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
   // Fetch products from backend
-  const { data, isLoading, error } = useQuery(['products'], () => apiService.getProducts());
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['products'],
+    queryFn: () => apiService.getProducts()
+  });
   const products = data?.products || [];
 
   const getStatusBadge = (status: string) => {
@@ -163,9 +167,14 @@ const ManageProducts = () => {
               {filteredProducts.map((product: any) => (
                 <div key={product._id || product.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50">
                   <img
-                    src={product.images?.[0]?.url || '/placeholder.svg'}
+                    src={getPrimaryImageUrl(product.images)}
                     alt={product.name}
                     className="w-16 h-16 object-cover rounded-lg"
+                    onError={(e) => {
+                      // Fallback to placeholder if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/placeholder.svg';
+                    }}
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">

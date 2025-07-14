@@ -5,25 +5,45 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ["**/*.{ts,tsx}"],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-    },
+    files: ['**/*.{js,jsx,ts,tsx}'],
     plugins: {
-      "react-hooks": reactHooks,
-      "react-refresh": reactRefresh,
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
+    },
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.es2021,
+      },
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
+      // TanStack Query v5 syntax enforcement
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'CallExpression[callee.name="useQuery"] > ArrayExpression',
+          message: 'TanStack Query v5 requires object syntax. Use { queryKey: [...], queryFn: ... } instead of array syntax.',
+        },
+        {
+          selector: 'CallExpression[callee.name="useMutation"] > ArrayExpression',
+          message: 'TanStack Query v5 requires object syntax. Use { mutationFn: ... } instead of array syntax.',
+        },
+      ],
+      // React Hooks rules
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+      // React Refresh rules
+      'react-refresh/only-export-components': [
+        'warn',
         { allowConstantExport: true },
       ],
-      "@typescript-eslint/no-unused-vars": "off",
     },
+  },
+  {
+    files: ['**/*.{js,jsx,ts,tsx}'],
+    ignores: ['dist', 'node_modules'],
   }
 );

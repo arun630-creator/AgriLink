@@ -120,23 +120,27 @@ const Marketplace = () => {
   }, [error]);
 
   // Transform API data to match ProductCard expectations
-  const transformProductForCard = (product: Product) => ({
-    id: product.id || product._id,
-    name: product.name,
-    price: product.price,
-    unit: product.unit,
-    quantity: product.quantity,
-    category: product.category,
-    description: product.description,
-    image: product.images?.[0]?.url || "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400",
-    farmer: {
-      name: product.farmer.name,
-      location: product.farmer.location || "Unknown",
-      rating: product.farmer.rating || 0
-    },
-    harvestDate: product.harvestDate,
-    organic: product.organic
-  });
+  const transformProductForCard = (product: Product) => {
+    console.log('Product from API:', product);
+    return {
+      id: product.id || product._id,
+      name: product.name,
+      price: product.price ?? product.basePrice ?? 0,
+      unit: product.unit,
+      quantity: product.quantity,
+      category: product.category,
+      description: product.description,
+      images: product.images || [],
+      farmer: {
+        id: product.farmer.id || product.farmer._id, // include farmer id
+        name: product.farmer.name,
+        location: product.farmer.location || "Location not set",
+        rating: product.farmer.rating || 0
+      },
+      harvestDate: product.harvestDate,
+      organic: product.organic
+    };
+  };
 
   const products = productsData?.products || [];
   const pagination = productsData?.pagination;

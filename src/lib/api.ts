@@ -260,6 +260,39 @@ export interface CreateAddressData {
 
 export interface UpdateAddressData extends Partial<CreateAddressData> {}
 
+// Review Types
+export interface Review {
+  id?: string;
+  _id?: string;
+  product: string;
+  user: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  rating: number;
+  comment?: string;
+  images?: Array<{
+    url: string;
+    alt?: string;
+    uploadedAt: string;
+  }>;
+  videos?: Array<{
+    url: string;
+    title?: string;
+    description?: string;
+    duration?: number;
+    uploadedAt: string;
+  }>;
+  verified: boolean;
+  helpful?: {
+    count: number;
+    users: string[];
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Helper function to get auth token
 const getAuthToken = (): string | null => {
   return localStorage.getItem('token');
@@ -636,7 +669,8 @@ class ApiService {
         'Content-Type': 'application/json',
       },
     });
-    return handleResponse(response);
+    const data = await handleResponse(response);
+    return data.product; // Extract the product from the response
   }
 
   async getFeaturedProducts(limit: number = 6): Promise<{ products: Product[] }> {
@@ -646,7 +680,8 @@ class ApiService {
         'Content-Type': 'application/json',
       },
     });
-    return handleResponse(response);
+    const data = await handleResponse(response);
+    return { products: data.products };
   }
 
   async searchProducts(params: {
@@ -1107,6 +1142,52 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
       },
+    });
+    return handleResponse(response);
+  }
+
+  async getProductReviews(productId: string): Promise<Review[]> {
+    const response = await fetch(`${this.baseURL}/products/${productId}/reviews`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    const data = await handleResponse(response);
+    return data.reviews;
+  }
+
+  async addProductReview(productId: string, reviewData: { rating: number; comment: string }): Promise<Review> {
+    const token = getAuthToken();
+    if (!token) throw new Error('No authentication token found');
+    const response = await fetch(`${this.baseURL}/products/${productId}/reviews`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(reviewData),
+    });
+    const data = await handleResponse(response);
+    return data.review;
+  }
+
+  async uploadReviewMedia(reviewId: string, files: File[], mediaType: 'image' | 'video'): Promise<{ review: Review; uploadedMedia: any[] }> {
+    const token = getAuthToken();
+    if (!token) throw new Error('No authentication token found');
+
+    const formData = new FormData();
+    formData.append('mediaType', mediaType);
+    files.forEach((file) => {
+      formData.append('media', file);
+    });
+
+    const response = await fetch(`${this.baseURL}/products/reviews/${reviewId}/media`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
     });
     return handleResponse(response);
   }

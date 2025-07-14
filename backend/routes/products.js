@@ -55,12 +55,59 @@ const upload = multer({
   }
 });
 
+// Create uploads directory for reviews if it doesn't exist
+const reviewUploadsDir = path.join(__dirname, '..', 'uploads', 'reviews');
+if (!fs.existsSync(reviewUploadsDir)) {
+  fs.mkdirSync(reviewUploadsDir, { recursive: true });
+}
+
+// Configure multer for review media uploads
+const reviewStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, reviewUploadsDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'review-' + uniqueSuffix + ext);
+  }
+});
+
+const reviewFileFilter = (req, file, cb) => {
+  // Accept images and videos
+  if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image and video files are allowed!'), false);
+  }
+};
+
+const reviewUpload = multer({
+  storage: reviewStorage,
+  fileFilter: reviewFileFilter,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit for videos
+    files: 5 // Maximum 5 files
+  }
+});
+
 // Public routes (no authentication required)
 router.get('/', getProductsValidation, handleValidationErrors, productController.getProducts);
 router.get('/featured', productController.getFeaturedProducts);
 router.get('/search', productController.searchProducts);
 router.get('/farmer/:farmerId', productController.getFarmerProducts);
 router.get('/:id', getProductValidation, handleValidationErrors, productController.getProduct);
+
+// Public review route
+router.get('/:id/reviews', productController.getProductReviews);
+// Authenticated review route
+router.post('/:id/reviews', auth, productController.addProductReview);
+// Upload review media
+router.post('/reviews/:reviewId/media', 
+  auth, 
+  reviewUpload.array('media', 5), // Maximum 5 files
+  productController.uploadReviewMedia
+);
 
 // Protected routes (authentication required)
 router.use(auth);
